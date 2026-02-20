@@ -5,46 +5,34 @@ import makeWASocket, {
 } from "@whiskeysockets/baileys";
 
 import pino from "pino";
-import QRCode from "qrcode";
-import axios from "axios";
-import FormData from "form-data";
 import fs from "fs";
 
 import { locations } from "./locations.js";
 import { onWhatsAppLevel } from "./logic.js";
 
-const BOT_TOKEN = process.env.BOT_TOKEN;
-const REMINDER_CHANNEL = "-1003719282039";
 const AUTH_DIR = "wa-auth";
 
-async function sendQrToTelegram(qr) {
-  const buffer = await QRCode.toBuffer(qr);
+function normalize(text) {
+  return text
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
 
-  const form = new FormData();
-  form.append("chat_id", REMINDER_CHANNEL);
-  form.append(
-    "caption",
-    "🔐 QR-код для підключення WhatsApp\nВідскануйте з *основного телефону*",
-  );
-  form.append("photo", buffer, "wa-qr.png");
+function detectLevel(text) {
+  // ❗ Працюємо ТІЛЬКИ по емодзі
+  if (text.includes("🚨")) return "red";
+  if (text.includes("🔷")) return "blue";
+  if (text.includes("🟡")) return "yellow";
+  if (text.includes("✅")) return "green";
 
-  await axios.post(
-    `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`,
-    form,
-    {
-      headers: form.getHeaders(),
-      params: { parse_mode: "Markdown" }
-    }
-  );
+  return null;
 }
 
 export async function startWhatsApp() {
-  // 🔥 ЖОРСТКИЙ ФІКС: якщо папка auth порожня або зламана — видаляємо
-  if (fs.existsSync(AUTH_DIR)) {
-    const files = fs.readdirSync(AUTH_DIR);
-    if (files.length === 0) {
-      fs.rmSync(AUTH_DIR, { recursive: true, force: true });
-    }
+  if (fs.existsSync(AUTH_DIR) && fs.readdirSync(AUTH_DIR).length === 0) {
+    fs.rmSync(AUTH_DIR, { recursive: true, force: true });
   }
 
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
@@ -54,21 +42,13 @@ export async function startWhatsApp() {
     auth: state,
     version,
     logger: pino({ level: "silent" }),
-    printQRInTerminal: false,
     browser: ["DRC Alert Monitor", "Chrome", "120.0"],
     markOnlineOnConnect: false
   });
 
   sock.ev.on("creds.update", saveCreds);
 
-  sock.ev.on("connection.update", async (update) => {
-    const { connection, qr, lastDisconnect } = update;
-
-    if (qr) {
-      console.log("📲 QR GENERATED — sending to Telegram");
-      await sendQrToTelegram(qr);
-    }
-
+  sock.ev.on("connection.update", ({ connection, lastDisconnect }) => {
     if (connection === "open") {
       console.log("✅ WhatsApp connected");
     }
@@ -78,7 +58,6 @@ export async function startWhatsApp() {
       console.log("❌ WhatsApp disconnected", code);
 
       if (code !== DisconnectReason.loggedOut) {
-        console.log("🔁 Restarting WhatsApp socket");
         setTimeout(startWhatsApp, 3000);
       }
     }
@@ -86,20 +65,31 @@ export async function startWhatsApp() {
 
   sock.ev.on("messages.upsert", ({ messages }) => {
     const msg = messages[0];
-    const text = msg?.message?.conversation?.toLowerCase();
+    const text = msg?.message?.conversation;
     if (!text) return;
+
+    const level = detectLevel(text);
+
+if (!level) {
+  console.log(
+    "ℹ️ WhatsApp message ignored (no emoji level):",
+    text.slice(0, 80)
+  );
+  return;
+}
 
     const loc = Object.values(locations).find(
       l => l.groupId === msg.key.remoteJid
     );
     if (!loc) return;
 
-    if (text.includes("рівень синій")) {
-      onWhatsAppLevel(loc.key, "blue");
-    }
+    console.log(
+      "📲 WhatsApp level detected:",
+      loc.key,
+      "→",
+      level
+    );
 
-    if (text.includes("рівень зелений")) {
-      onWhatsAppLevel(loc.key, "green");
-    }
+    onWhatsAppLevel(loc.key, level);
   });
 }
