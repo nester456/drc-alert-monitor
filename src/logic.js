@@ -11,29 +11,33 @@ import {
 
 /**
  * Telegram повідомив про ПОВІТРЯНУ ТРИВОГУ
- * Очікуємо СИНІЙ рівень, якщо поточний був ЗЕЛЕНИЙ
+ * Очікуємо СИНІЙ рівень ПІСЛЯ цієї події
  */
 export function onTelegramAlert(locKey, groupName) {
   const s = state[locKey];
 
+  s.lastTelegramAlertAt = Date.now();
+
   console.log(
     "🧠 onTelegramAlert:",
     locKey,
-    "current level =",
-    s.level
+    "level =",
+    s.level,
+    "levelAt =",
+    s.levelAt
   );
 
-  // Синій має сенс ТІЛЬКИ після зеленого
-  if (s.level !== "green") return;
-
-  // Скасовуємо попереднє очікування, якщо було
   if (s.pending) {
     clearTimeout(s.pending);
     s.pending = null;
   }
 
+  // ⏱️ Завжди чекаємо підтвердження синього ПІСЛЯ Telegram
   s.pending = setTimeout(() => {
-    if (s.level === "green") {
+    if (
+      s.level !== "blue" ||
+      s.levelAt < s.lastTelegramAlertAt
+    ) {
       sendBlueReminder(locKey, groupName);
     }
     s.pending = null;
@@ -42,29 +46,33 @@ export function onTelegramAlert(locKey, groupName) {
 
 /**
  * Telegram повідомив про ВІДБІЙ
- * Очікуємо ЗЕЛЕНИЙ рівень, якщо поточний ≠ зелений
+ * Очікуємо ЗЕЛЕНИЙ рівень ПІСЛЯ цієї події
  */
 export function onTelegramClear(locKey, groupName) {
   const s = state[locKey];
 
+  s.lastTelegramClearAt = Date.now();
+
   console.log(
     "🧠 onTelegramClear:",
     locKey,
-    "current level =",
-    s.level
+    "level =",
+    s.level,
+    "levelAt =",
+    s.levelAt
   );
 
-  // Зелений після зеленого не потрібен
-  if (s.level === "green") return;
-
-  // Скасовуємо попереднє очікування, якщо було
   if (s.pending) {
     clearTimeout(s.pending);
     s.pending = null;
   }
 
+  // ⏱️ Завжди чекаємо підтвердження зеленого ПІСЛЯ Telegram
   s.pending = setTimeout(() => {
-    if (s.level !== "green") {
+    if (
+      s.level !== "green" ||
+      s.levelAt < s.lastTelegramClearAt
+    ) {
       sendGreenReminder(locKey, groupName);
     }
     s.pending = null;
@@ -73,7 +81,7 @@ export function onTelegramClear(locKey, groupName) {
 
 /**
  * Повідомлення з WhatsApp-групи про зміну рівня
- * Зберігаємо ТІЛЬКИ ОСТАННІЙ рівень
+ * Фіксуємо ОСТАННІЙ рівень і час
  */
 export function onWhatsAppLevel(locKey, level) {
   const s = state[locKey];
@@ -88,14 +96,9 @@ export function onWhatsAppLevel(locKey, level) {
     ")"
   );
 
-  // Ігноруємо повтори
-  if (level === "green" && s.level === "green") return;
-  if (level === "blue" && s.level !== "green") return;
-
   s.level = level;
   s.levelAt = Date.now();
 
-  // Якщо чекали таймер — зупиняємо
   if (s.pending) {
     clearTimeout(s.pending);
     s.pending = null;
