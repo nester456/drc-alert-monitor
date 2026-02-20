@@ -10,29 +10,25 @@ import {
 } from "./config.js";
 
 /**
- * Telegram повідомив про ПОВІТРЯНУ ТРИВОГУ
- * 🔷 Синій ВИМАГАЄМО ТІЛЬКИ якщо ДО ЦЬОГО був зелений
+ * TELEGRAM: ПОВІТРЯНА ТРИВОГА
+ * 🔷 Синій потрібен ТІЛЬКИ якщо ДО ЦЬОГО був зелений
  */
 export function onTelegramAlert(locKey, groupName) {
   const s = state[locKey];
+  const alertAt = Date.now();
 
-  s.lastTelegramAlertAt = Date.now();
+  s.lastTelegramAlertAt = alertAt;
 
   console.log(
     "🧠 onTelegramAlert:",
     locKey,
-    "level =",
-    s.level,
-    "levelAt =",
-    s.levelAt
+    "level =", s.level,
+    "levelAt =", s.levelAt
   );
 
-  // 🔒 Якщо не було зеленого — синій НЕ потрібен
+  // 🔒 Якщо не було зеленого — синій не потрібен
   if (s.level !== "green") {
-    console.log(
-      "ℹ️ Blue not required, current level is",
-      s.level
-    );
+    console.log("ℹ️ Blue not required, current level =", s.level);
     return;
   }
 
@@ -44,7 +40,7 @@ export function onTelegramAlert(locKey, groupName) {
   s.pending = setTimeout(() => {
     if (
       s.level !== "blue" ||
-      s.levelAt < s.lastTelegramAlertAt
+      s.levelAt < alertAt
     ) {
       sendBlueReminder(locKey, groupName);
     }
@@ -53,21 +49,20 @@ export function onTelegramAlert(locKey, groupName) {
 }
 
 /**
- * Telegram повідомив про ВІДБІЙ
- * ✅ ЗАВЖДИ очікуємо НОВИЙ зелений ПІСЛЯ цієї події
+ * TELEGRAM: ВІДБІЙ
+ * ✅ Зелений потрібен, якщо НЕ БУЛО нового зеленого ПІСЛЯ цієї події
  */
 export function onTelegramClear(locKey, groupName) {
   const s = state[locKey];
+  const clearAt = Date.now();
 
-  s.lastTelegramClearAt = Date.now();
+  s.lastTelegramClearAt = clearAt;
 
   console.log(
     "🧠 onTelegramClear:",
     locKey,
-    "level =",
-    s.level,
-    "levelAt =",
-    s.levelAt
+    "level =", s.level,
+    "levelAt =", s.levelAt
   );
 
   if (s.pending) {
@@ -75,10 +70,22 @@ export function onTelegramClear(locKey, groupName) {
     s.pending = null;
   }
 
+  // 🔑 Визначаємо, чи потрібен новий зелений
+  const greenRequired =
+    // якщо рівень не зелений
+    s.level !== "green" ||
+    // або зелений старіший за подію (рестарт / старий стан)
+    s.levelAt < clearAt;
+
+  if (!greenRequired) {
+    console.log("ℹ️ Green already confirmed after clear");
+    return;
+  }
+
   s.pending = setTimeout(() => {
     if (
       s.level !== "green" ||
-      s.levelAt < s.lastTelegramClearAt
+      s.levelAt < clearAt
     ) {
       sendGreenReminder(locKey, groupName);
     }
@@ -87,8 +94,8 @@ export function onTelegramClear(locKey, groupName) {
 }
 
 /**
- * Повідомлення з WhatsApp-групи про зміну рівня
- * Фіксуємо ОСТАННІЙ рівень і час
+ * WHATSAPP: ФІКСАЦІЯ РІВНЯ
+ * Фіксуємо ОСТАННІЙ рівень + час
  */
 export function onWhatsAppLevel(locKey, level) {
   const s = state[locKey];
@@ -96,16 +103,14 @@ export function onWhatsAppLevel(locKey, level) {
   console.log(
     "📲 onWhatsAppLevel:",
     locKey,
-    "→",
-    level,
-    "(previous:",
-    s.level,
-    ")"
+    "→", level,
+    "(previous:", s.level, ")"
   );
 
   s.level = level;
   s.levelAt = Date.now();
 
+  // якщо чекали підтвердження — скасовуємо
   if (s.pending) {
     clearTimeout(s.pending);
     s.pending = null;
