@@ -8,6 +8,8 @@ import {
   onTelegramClear
 } from "./logic.js";
 
+let lastId = null;
+
 export async function startTelegramSource() {
   const client = new TelegramClient(
     new StringSession(process.env.TG_STRING_SESSION),
@@ -19,27 +21,44 @@ export async function startTelegramSource() {
   await client.start();
   console.log("✅ Telegram source ready");
 
-  let lastId = 0;
+  // 🔐 ІНІЦІАЛІЗАЦІЯ:
+  // при старті запамʼятовуємо ОСТАННЄ повідомлення
+  // і НЕ реагуємо на минулі події
+  const init = await client.getMessages(
+    TELEGRAM_SOURCE_CHANNEL,
+    { limit: 1 }
+  );
+
+  if (init.length > 0) {
+    lastId = init[0].id;
+    console.log("🔐 Telegram initialized at message", lastId);
+  }
 
   setInterval(async () => {
     const messages = await client.getMessages(
       TELEGRAM_SOURCE_CHANNEL,
-      { limit: 5 }
+      { limit: 10 }
     );
 
     for (const m of messages.reverse()) {
-      if (!m.message || m.id <= lastId) continue;
-      lastId = m.id;
+      if (!m.message) continue;
+      if (lastId !== null && m.id <= lastId) continue;
 
+      lastId = m.id;
       const text = m.message.toLowerCase();
 
+      const matched = new Set();
+
       for (const loc of Object.values(locations)) {
-        const hit = loc.aliases.some(alias =>
-          text.includes(alias.toLowerCase())
+        if (matched.has(loc.key)) continue;
+
+        const hit = loc.aliases.some(a =>
+          text.includes(a.toLowerCase())
         );
         if (!hit) continue;
 
-        // 🔷 ПОВІТРЯНА ТРИВОГА
+        matched.add(loc.key);
+
         if (text.includes("повітряна тривога")) {
           console.log(
             "📡 TELEGRAM ALERT MATCH:",
@@ -47,11 +66,9 @@ export async function startTelegramSource() {
             "→",
             loc.groupName
           );
-
           onTelegramAlert(loc.key, loc.groupName);
         }
 
-        // ✅ ВІДБІЙ
         if (text.includes("відбій тривоги")) {
           console.log(
             "📡 TELEGRAM CLEAR MATCH:",
@@ -59,7 +76,6 @@ export async function startTelegramSource() {
             "→",
             loc.groupName
           );
-
           onTelegramClear(loc.key, loc.groupName);
         }
       }
