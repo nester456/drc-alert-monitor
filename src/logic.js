@@ -11,7 +11,7 @@ import {
 
 /**
  * Telegram повідомив про ПОВІТРЯНУ ТРИВОГУ
- * Очікуємо СИНІЙ рівень ПІСЛЯ цієї події
+ * 🔷 Синій ВИМАГАЄМО ТІЛЬКИ якщо ДО ЦЬОГО був зелений
  */
 export function onTelegramAlert(locKey, groupName) {
   const s = state[locKey];
@@ -27,12 +27,20 @@ export function onTelegramAlert(locKey, groupName) {
     s.levelAt
   );
 
+  // 🔒 Якщо не було зеленого — синій НЕ потрібен
+  if (s.level !== "green") {
+    console.log(
+      "ℹ️ Blue not required, current level is",
+      s.level
+    );
+    return;
+  }
+
   if (s.pending) {
     clearTimeout(s.pending);
     s.pending = null;
   }
 
-  // ⏱️ Завжди чекаємо підтвердження синього ПІСЛЯ Telegram
   s.pending = setTimeout(() => {
     if (
       s.level !== "blue" ||
@@ -46,7 +54,7 @@ export function onTelegramAlert(locKey, groupName) {
 
 /**
  * Telegram повідомив про ВІДБІЙ
- * Очікуємо ЗЕЛЕНИЙ рівень ПІСЛЯ цієї події
+ * ✅ ЗАВЖДИ очікуємо НОВИЙ зелений ПІСЛЯ цієї події
  */
 export function onTelegramClear(locKey, groupName) {
   const s = state[locKey];
@@ -67,7 +75,6 @@ export function onTelegramClear(locKey, groupName) {
     s.pending = null;
   }
 
-  // ⏱️ Завжди чекаємо підтвердження зеленого ПІСЛЯ Telegram
   s.pending = setTimeout(() => {
     if (
       s.level !== "green" ||
