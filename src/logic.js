@@ -9,11 +9,28 @@ import {
   GREEN_TIMEOUT_MS
 } from "./config.js";
 
+/**
+ * Telegram повідомив про ПОВІТРЯНУ ТРИВОГУ
+ * Очікуємо СИНІЙ рівень, якщо поточний був ЗЕЛЕНИЙ
+ */
 export function onTelegramAlert(locKey, groupName) {
   const s = state[locKey];
 
-  // синій має сенс ТІЛЬКИ після зеленого
+  console.log(
+    "🧠 onTelegramAlert:",
+    locKey,
+    "current level =",
+    s.level
+  );
+
+  // Синій має сенс ТІЛЬКИ після зеленого
   if (s.level !== "green") return;
+
+  // Скасовуємо попереднє очікування, якщо було
+  if (s.pending) {
+    clearTimeout(s.pending);
+    s.pending = null;
+  }
 
   s.pending = setTimeout(() => {
     if (s.level === "green") {
@@ -23,11 +40,28 @@ export function onTelegramAlert(locKey, groupName) {
   }, BLUE_TIMEOUT_MS);
 }
 
+/**
+ * Telegram повідомив про ВІДБІЙ
+ * Очікуємо ЗЕЛЕНИЙ рівень, якщо поточний ≠ зелений
+ */
 export function onTelegramClear(locKey, groupName) {
   const s = state[locKey];
 
-  // зелений після зеленого не потрібен
+  console.log(
+    "🧠 onTelegramClear:",
+    locKey,
+    "current level =",
+    s.level
+  );
+
+  // Зелений після зеленого не потрібен
   if (s.level === "green") return;
+
+  // Скасовуємо попереднє очікування, якщо було
+  if (s.pending) {
+    clearTimeout(s.pending);
+    s.pending = null;
+  }
 
   s.pending = setTimeout(() => {
     if (s.level !== "green") {
@@ -36,23 +70,32 @@ export function onTelegramClear(locKey, groupName) {
     s.pending = null;
   }, GREEN_TIMEOUT_MS);
 }
-console.log(
-  "🧠 onTelegramClear:",
-  locKey,
-  "current level =",
-  s.level
-);
 
+/**
+ * Повідомлення з WhatsApp-групи про зміну рівня
+ * Зберігаємо ТІЛЬКИ ОСТАННІЙ рівень
+ */
 export function onWhatsAppLevel(locKey, level) {
   const s = state[locKey];
 
-  // ігноруємо повтори
+  console.log(
+    "📲 onWhatsAppLevel:",
+    locKey,
+    "→",
+    level,
+    "(previous:",
+    s.level,
+    ")"
+  );
+
+  // Ігноруємо повтори
   if (level === "green" && s.level === "green") return;
   if (level === "blue" && s.level !== "green") return;
 
   s.level = level;
   s.levelAt = Date.now();
 
+  // Якщо чекали таймер — зупиняємо
   if (s.pending) {
     clearTimeout(s.pending);
     s.pending = null;
