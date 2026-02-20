@@ -36,6 +36,12 @@ export function onTelegramClear(locKey, groupName) {
     s.pending = null;
   }, GREEN_TIMEOUT_MS);
 }
+console.log(
+  "🧠 onTelegramClear:",
+  locKey,
+  "current level =",
+  s.level
+);
 
 export function onWhatsAppLevel(locKey, level) {
   const s = state[locKey];

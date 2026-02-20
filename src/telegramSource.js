@@ -34,16 +34,32 @@ export async function startTelegramSource() {
       const text = m.message.toLowerCase();
 
       for (const loc of Object.values(locations)) {
-        const hit = loc.aliases.some(a =>
-          text.includes(a.toLowerCase())
+        const hit = loc.aliases.some(alias =>
+          text.includes(alias.toLowerCase())
         );
         if (!hit) continue;
 
+        // 🔷 ПОВІТРЯНА ТРИВОГА
         if (text.includes("повітряна тривога")) {
+          console.log(
+            "📡 TELEGRAM ALERT MATCH:",
+            loc.key,
+            "→",
+            loc.groupName
+          );
+
           onTelegramAlert(loc.key, loc.groupName);
         }
 
+        // ✅ ВІДБІЙ
         if (text.includes("відбій тривоги")) {
+          console.log(
+            "📡 TELEGRAM CLEAR MATCH:",
+            loc.key,
+            "→",
+            loc.groupName
+          );
+
           onTelegramClear(loc.key, loc.groupName);
         }
       }
