@@ -9,6 +9,9 @@ import {
   GREEN_TIMEOUT_MS
 } from "./config.js";
 
+// ⏱️ Довіра до зеленого навколо Telegram-відбою (мс)
+const GREEN_GRACE_MS = 90 * 1000;
+
 /**
  * TELEGRAM: ПОВІТРЯНА ТРИВОГА
  * 🔷 Синій потрібен ТІЛЬКИ якщо ДО ЦЬОГО був зелений
@@ -22,15 +25,13 @@ export function onTelegramAlert(locKey, groupName) {
   console.log(
     "🧠 onTelegramAlert:",
     locKey,
-    "level =", s.level,
-    "levelAt =", s.levelAt
+    "level =",
+    s.level,
+    "levelAt =",
+    s.levelAt
   );
 
-  // 🔒 Якщо не було зеленого — синій не потрібен
-  if (s.level !== "green") {
-    console.log("ℹ️ Blue not required, current level =", s.level);
-    return;
-  }
+  if (s.level !== "green") return;
 
   if (s.pending) {
     clearTimeout(s.pending);
@@ -50,7 +51,7 @@ export function onTelegramAlert(locKey, groupName) {
 
 /**
  * TELEGRAM: ВІДБІЙ
- * ✅ Зелений потрібен, якщо НЕ БУЛО нового зеленого ПІСЛЯ цієї події
+ * ✅ Зелений потрібен, якщо НЕ БУЛО валідного зеленого
  */
 export function onTelegramClear(locKey, groupName) {
   const s = state[locKey];
@@ -61,8 +62,10 @@ export function onTelegramClear(locKey, groupName) {
   console.log(
     "🧠 onTelegramClear:",
     locKey,
-    "level =", s.level,
-    "levelAt =", s.levelAt
+    "level =",
+    s.level,
+    "levelAt =",
+    s.levelAt
   );
 
   if (s.pending) {
@@ -70,23 +73,21 @@ export function onTelegramClear(locKey, groupName) {
     s.pending = null;
   }
 
-  // 🔑 Визначаємо, чи потрібен новий зелений
-  const greenRequired =
-    // якщо рівень не зелений
-    s.level !== "green" ||
-    // або зелений старіший за подію (рестарт / старий стан)
-    s.levelAt < clearAt;
+  // ✅ чи можемо зарахувати зелений
+  const greenIsValid =
+    s.level === "green" &&
+    Math.abs(s.levelAt - clearAt) <= GREEN_GRACE_MS;
 
-  if (!greenRequired) {
-    console.log("ℹ️ Green already confirmed after clear");
+  if (greenIsValid) {
+    console.log("ℹ️ Green accepted within grace window");
+    s.awaitingGreen = false;
     return;
   }
 
+  s.awaitingGreen = true;
+
   s.pending = setTimeout(() => {
-    if (
-      s.level !== "green" ||
-      s.levelAt < clearAt
-    ) {
+    if (s.awaitingGreen) {
       sendGreenReminder(locKey, groupName);
     }
     s.pending = null;
@@ -94,8 +95,7 @@ export function onTelegramClear(locKey, groupName) {
 }
 
 /**
- * WHATSAPP: ФІКСАЦІЯ РІВНЯ
- * Фіксуємо ОСТАННІЙ рівень + час
+ * WHATSAPP: ЗМІНА РІВНЯ
  */
 export function onWhatsAppLevel(locKey, level) {
   const s = state[locKey];
@@ -103,14 +103,20 @@ export function onWhatsAppLevel(locKey, level) {
   console.log(
     "📲 onWhatsAppLevel:",
     locKey,
-    "→", level,
-    "(previous:", s.level, ")"
+    "→",
+    level,
+    "(previous:",
+    s.level,
+    ")"
   );
 
   s.level = level;
   s.levelAt = Date.now();
 
-  // якщо чекали підтвердження — скасовуємо
+  if (level === "green" && s.awaitingGreen) {
+    s.awaitingGreen = false;
+  }
+
   if (s.pending) {
     clearTimeout(s.pending);
     s.pending = null;
