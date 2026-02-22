@@ -1,29 +1,41 @@
 import axios from "axios";
-import { stats } from "./stats.js";
+import { state } from "./state.js";
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
-const REMINDER_CHANNEL = "-1003719282039";
+const CHANNEL = "-1003719282039";
 
 export async function sendBlueReminder(locKey, groupName) {
-  stats.blue.push({ locKey, ts: Date.now() });
+  const s = state[locKey];
 
-  await axios.post(
-    `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
-    {
-      chat_id: REMINDER_CHANNEL,
-      text: `❗ Увага, ви не поставили 🔷 синій рівень тривоги в ${groupName}`
-    }
+  // фіксуємо перше нагадування за зміну
+  if (!s.shiftStats.blue.reminderAt) {
+    s.shiftStats.blue.reminderAt = Date.now();
+  }
+
+  await send(
+    `❗❗❗ Увага, ви не поставили 🔷 *синій* рівень тривоги в **${groupName}**`
   );
 }
 
 export async function sendGreenReminder(locKey, groupName) {
-  stats.green.push({ locKey, ts: Date.now() });
+  const s = state[locKey];
 
+  if (!s.shiftStats.green.reminderAt) {
+    s.shiftStats.green.reminderAt = Date.now();
+  }
+
+  await send(
+    `❗❗❗ Увага, ви не поставили ✅ *зелений* рівень тривоги в **${groupName}**`
+  );
+}
+
+async function send(text) {
   await axios.post(
     `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
     {
-      chat_id: REMINDER_CHANNEL,
-      text: `❗ Увага, ви забули поставити ✅ зелений рівень тривоги в ${groupName}`
+      chat_id: CHANNEL,
+      text,
+      parse_mode: "Markdown"
     }
   );
 }

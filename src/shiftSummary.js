@@ -1,43 +1,66 @@
 import axios from "axios";
-import { stats } from "./stats.js";
+import { state } from "./state.js";
+import { locations } from "./locations.js";
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const CHANNEL = "-1003719282039";
 
-// 12 годин
-const SHIFT_MS = 12 * 60 * 60 * 1000;
+// ⏱ додаємо +1 хвилину (бо рахуємо від reminder)
+const ADD_MIN = 1;
 
 export async function sendShiftSummary() {
-  const now = Date.now();
-  const from = now - SHIFT_MS;
+  let lines = [];
 
-  const blue = stats.blue.filter(e => e.ts >= from);
-  const green = stats.green.filter(e => e.ts >= from);
+  for (const loc of Object.values(locations)) {
+    const s = state[loc.key];
 
-  // якщо порушень не було
-  if (blue.length === 0 && green.length === 0) {
-    await send("✅ За минулу зміну всі рівні було виставлено без затримок");
+    // 🔷 синій
+    const b = s.shiftStats.blue;
+    if (b.reminderAt) {
+      if (!b.resolvedAt) {
+        lines.push(
+          `🔷 ${loc.groupName}: ❌ після нагадування рівень не було поставлено`
+        );
+      } else {
+        const min =
+          Math.round((b.resolvedAt - b.reminderAt) / 60000) + ADD_MIN;
+        lines.push(
+          `🔷 ${loc.groupName}: затримка синього на ${min} хв`
+        );
+      }
+    }
+
+    // ✅ зелений
+    const g = s.shiftStats.green;
+    if (g.reminderAt) {
+      if (!g.resolvedAt) {
+        lines.push(
+          `✅ ${loc.groupName}: ❌ після нагадування рівень не було поставлено`
+        );
+      } else {
+        const min =
+          Math.round((g.resolvedAt - g.reminderAt) / 60000) + ADD_MIN;
+        lines.push(
+          `✅ ${loc.groupName}: затримка зеленого на ${min} хв`
+        );
+      }
+    }
+
+    // 🔄 очищаємо статистику ПІСЛЯ звіту
+    s.shiftStats.blue = { reminderAt: null, resolvedAt: null };
+    s.shiftStats.green = { reminderAt: null, resolvedAt: null };
+  }
+
+  if (lines.length === 0) {
+    await send(
+      "✅ За минулу зміну всі рівні було виставлено без затримок"
+    );
     return;
   }
 
-  let text = "📊 Підсумок за останні 12 годин:\n\n";
-
-  const countByLoc = (arr) =>
-    arr.reduce((acc, e) => {
-      acc[e.locKey] = (acc[e.locKey] || 0) + 1;
-      return acc;
-    }, {});
-
-  const blueByLoc = countByLoc(blue);
-  const greenByLoc = countByLoc(green);
-
-  for (const [loc, count] of Object.entries(blueByLoc)) {
-    text += `🔷 ${loc}: ${count} затримок синього\n`;
-  }
-
-  for (const [loc, count] of Object.entries(greenByLoc)) {
-    text += `✅ ${loc}: ${count} затримок зеленого\n`;
-  }
+  const text =
+    "📊 Підсумок за останню зміну:\n\n" +
+    lines.join("\n");
 
   await send(text);
 }

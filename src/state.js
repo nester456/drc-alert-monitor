@@ -13,13 +13,23 @@ for (const loc of Object.values(locations)) {
     // активний таймер очікування (blue / green)
     pending: null,
 
-    // чи очікуємо зелений після Telegram-відбою
+    // очікуємо зелений після Telegram-відбою
     awaitingGreen: false,
 
-    // час останнього Telegram ALERT (тривога)
+    // час останніх подій Telegram
     lastTelegramAlertAt: 0,
+    lastTelegramClearAt: 0,
 
-    // час останнього Telegram CLEAR (відбій)
-    lastTelegramClearAt: 0
+    // 📊 статистика за зміну (від reminder)
+    shiftStats: {
+      blue: {
+        reminderAt: null,
+        resolvedAt: null
+      },
+      green: {
+        reminderAt: null,
+        resolvedAt: null
+      }
+    }
   };
 }
