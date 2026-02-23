@@ -114,6 +114,30 @@ export function onWhatsAppLevel(locKey, level) {
   s.level = level;
   s.levelAt = Date.now();
 
+  if (level === "blue") {
+    const last = [...s.shiftStats.blue]
+      .reverse()
+      .find(e => e.resolvedAt === null);
+    if (last) last.resolvedAt = Date.now();
+  }
+
+  if (level === "green") {
+    const last = [...s.shiftStats.green]
+      .reverse()
+      .find(e => e.resolvedAt === null);
+    if (last) last.resolvedAt = Date.now();
+    s.awaitingGreen = false;
+  }
+
+  if (s.pending) {
+    clearTimeout(s.pending);
+    s.pending = null;
+  }
+}
+
+  s.level = level;
+  s.levelAt = Date.now();
+
   // 🔷 реакція на reminder синього
   if (
     level === "blue" &&
