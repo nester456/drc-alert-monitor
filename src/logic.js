@@ -96,7 +96,7 @@ export function onTelegramClear(locKey, groupName) {
 
 /**
  * WHATSAPP: ЗМІНА РІВНЯ
- * ➕ Фіксуємо реакцію ПІСЛЯ reminder для підсумкового звіту
+ * 📊 закриваємо ОСТАННЮ незакриту подію
  */
 export function onWhatsAppLevel(locKey, level) {
   const s = state[locKey];
@@ -126,34 +126,6 @@ export function onWhatsAppLevel(locKey, level) {
       .reverse()
       .find(e => e.resolvedAt === null);
     if (last) last.resolvedAt = Date.now();
-    s.awaitingGreen = false;
-  }
-
-  if (s.pending) {
-    clearTimeout(s.pending);
-    s.pending = null;
-  }
-}
-
-  s.level = level;
-  s.levelAt = Date.now();
-
-  // 🔷 реакція на reminder синього
-  if (
-    level === "blue" &&
-    s.shiftStats?.blue?.reminderAt &&
-    !s.shiftStats.blue.resolvedAt
-  ) {
-    s.shiftStats.blue.resolvedAt = Date.now();
-  }
-
-  // ✅ реакція на reminder зеленого
-  if (
-    level === "green" &&
-    s.shiftStats?.green?.reminderAt &&
-    !s.shiftStats.green.resolvedAt
-  ) {
-    s.shiftStats.green.resolvedAt = Date.now();
     s.awaitingGreen = false;
   }
 
