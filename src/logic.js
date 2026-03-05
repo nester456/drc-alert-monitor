@@ -1,3 +1,4 @@
+import { saveLevel } from "./levelStore.js";
 import { state } from "./state.js";
 import {
   sendBlueReminder,
@@ -126,6 +127,7 @@ export function onWhatsAppLevel(locKey, level) {
 
   s.level = level;
   s.levelAt = Date.now();
+  saveLevel(locKey, s.level, s.levelAt);
 
   if (level === "blue") {
     const last = [...s.shiftStats.blue]
