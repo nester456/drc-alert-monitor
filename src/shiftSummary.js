@@ -10,7 +10,8 @@ function fmt(ts) {
   const d = new Date(ts);
   return d.toLocaleTimeString("uk-UA", {
     hour: "2-digit",
-    minute: "2-digit"
+    minute: "2-digit",
+    timeZone: "Europe/Kyiv"
   });
 }
 
