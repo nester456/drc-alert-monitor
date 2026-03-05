@@ -18,14 +18,15 @@ const GREEN_GRACE_MS = 90 * 1000;
  */
 export function onTelegramAlert(locKey, groupName) {
   const s = state[locKey];
+
   // закриваємо старі незакриті blue події
   for (const e of s.shiftStats.blue) {
     if (!e.resolvedAt) {
       e.closed = true;
     }
   }
-  const alertAt = Date.now();
 
+  const alertAt = Date.now();
   s.lastTelegramAlertAt = alertAt;
 
   console.log(
@@ -61,14 +62,15 @@ export function onTelegramAlert(locKey, groupName) {
  */
 export function onTelegramClear(locKey, groupName) {
   const s = state[locKey];
-  // закриваємо старі незакриті green події
-for (const e of s.shiftStats.green) {
-  if (!e.resolvedAt) {
-    e.closed = true;
-  }
-}
-  const clearAt = Date.now();
 
+  // закриваємо старі незакриті green події
+  for (const e of s.shiftStats.green) {
+    if (!e.resolvedAt) {
+      e.closed = true;
+    }
+  }
+
+  const clearAt = Date.now();
   s.lastTelegramClearAt = clearAt;
 
   console.log(
@@ -85,7 +87,6 @@ for (const e of s.shiftStats.green) {
     s.pending = null;
   }
 
-  // ✅ чи можемо зарахувати зелений
   const greenIsValid =
     s.level === "green" &&
     Math.abs(s.levelAt - clearAt) <= GREEN_GRACE_MS;
@@ -127,17 +128,20 @@ export function onWhatsAppLevel(locKey, level) {
   s.levelAt = Date.now();
 
   if (level === "blue") {
-    const last = [...s.shiftStats.green]
-  .reverse()
-  .find(e => e.resolvedAt === null && !e.closed);
+    const last = [...s.shiftStats.blue]
+      .reverse()
+      .find(e => e.resolvedAt === null && !e.closed);
+
     if (last) last.resolvedAt = Date.now();
   }
 
   if (level === "green") {
     const last = [...s.shiftStats.green]
       .reverse()
-      .find(e => e.resolvedAt === null);
+      .find(e => e.resolvedAt === null && !e.closed);
+
     if (last) last.resolvedAt = Date.now();
+
     s.awaitingGreen = false;
   }
 

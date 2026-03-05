@@ -22,25 +22,29 @@ export async function sendShiftSummary() {
     const s = state[loc.key];
 
     const render = (level, emoji, label) => {
-      if (s.shiftStats[level].length === 0) return;
+      const events = s.shiftStats[level].filter(e => !e.closed);
+
+      if (events.length === 0) return;
 
       lines.push(`${emoji} ${loc.groupName}: затримка ${label}:`);
 
-      for (const e of s.shiftStats[level]) {
+      for (const e of events) {
+
         if (!e.resolvedAt) {
-          lines.push(` – ❌ після нагадування рівень не було поставлено`);
+          lines.push(` – о ${fmt(e.reminderAt)} ❌ рівень не було поставлено`);
         } else {
           const min =
             Math.round((e.resolvedAt - e.reminderAt) / 60000) + ADD_MIN;
+
           lines.push(` – о ${fmt(e.reminderAt)} на ${min} хв`);
         }
+
       }
     };
 
     render("blue", "🔷", "синього");
     render("green", "✅", "зеленого");
 
-    // очищаємо після звіту
     s.shiftStats.blue = [];
     s.shiftStats.green = [];
   }
@@ -56,6 +60,9 @@ export async function sendShiftSummary() {
 async function send(text) {
   await axios.post(
     `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
-    { chat_id: CHANNEL, text }
+    {
+      chat_id: CHANNEL,
+      text
+    }
   );
 }
