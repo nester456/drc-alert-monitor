@@ -16,10 +16,13 @@ export async function sendBlueReminder(locKey, groupName) {
 }
 
 export async function sendGreenReminder(locKey, groupName) {
-  state[locKey].shiftStats.green.push({
-    reminderAt: Date.now(),
-    resolvedAt: null
-  });
+ const s = state[locKey];
+
+s.shiftStats.green.push({
+  reminderAt: Date.now(),
+  resolvedAt: null,
+  levelAtReminder: s.level // 👈 ключова річ
+});
 
   await send(
     `❗❗❗ Увага, ви не поставили ✅ *зелений* рівень тривоги в **${groupName}**`

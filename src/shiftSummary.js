@@ -31,12 +31,24 @@ export async function sendShiftSummary() {
       for (const e of events) {
 
         if (!e.resolvedAt) {
-          lines.push(` – о ${fmt(e.reminderAt)} ❌ рівень не було поставлено`);
+         let line = ` – о ${fmt(e.reminderAt)} ❌ рівень не було поставлено`;
+
+if (e.levelAtReminder === "red") {
+  line += `, однак в цей час був червоний рівень`;
+}
+
+lines.push(line);
         } else {
           const min =
             Math.round((e.resolvedAt - e.reminderAt) / 60000) + ADD_MIN;
 
-          lines.push(` – о ${fmt(e.reminderAt)} на ${min} хв`);
+          let line = ` – о ${fmt(e.reminderAt)} на ${min} хв`;
+
+if (e.levelAtReminder === "red") {
+  line += `, однак в цей час був червоний рівень`;
+}
+
+lines.push(line);
         }
 
       }
