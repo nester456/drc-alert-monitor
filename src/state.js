@@ -1,5 +1,8 @@
 import { loadLevels } from "./levelStore.js";
 import { locations } from "./locations.js";
+import { loadShiftStats } from "./shiftStore.js";
+
+const savedStats = loadShiftStats();
 
 export const state = {};
 
@@ -29,10 +32,10 @@ for (const loc of Object.values(locations)) {
     lastTelegramClearAt: 0,
 
     // 📊 журнал затримок за зміну
-    shiftStats: {
-      blue: [],   // [{ reminderAt, resolvedAt, closed }]
-      green: []   // [{ reminderAt, resolvedAt, closed }]
-    }
+   shiftStats: savedStats[loc.key] || {
+  blue: [],
+  green: []
+}
 
   };
 

@@ -9,7 +9,7 @@ import {
   BLUE_TIMEOUT_MS,
   GREEN_TIMEOUT_MS
 } from "./config.js";
-
+import { saveShiftStats } from "./shiftStore.js";
 // ⏱️ Довіра до зеленого навколо Telegram-відбою (мс)
 const GREEN_GRACE_MS = 90 * 1000;
 
@@ -46,15 +46,22 @@ export function onTelegramAlert(locKey, groupName) {
     s.pending = null;
   }
 
-  s.pending = setTimeout(() => {
-    if (
-      s.level !== "blue" ||
-      s.levelAt < alertAt
-    ) {
-      sendBlueReminder(locKey, groupName);
-    }
-    s.pending = null;
-  }, BLUE_TIMEOUT_MS);
+ s.pending = setTimeout(() => {
+
+  if (s.level === "blue") {
+    console.log("ℹ️ Skip blue reminder: already exists");
+    return;
+  }
+
+  if (s.level !== "green") {
+    console.log("ℹ️ Skip blue reminder: state changed");
+    return;
+  }
+
+  sendBlueReminder(locKey, groupName);
+  saveShiftStats(state);
+
+}, BLUE_TIMEOUT_MS);
 }
 
 /**
@@ -100,12 +107,26 @@ export function onTelegramClear(locKey, groupName) {
 
   s.awaitingGreen = true;
 
-  s.pending = setTimeout(() => {
-    if (s.awaitingGreen) {
-      sendGreenReminder(locKey, groupName);
-    }
-    s.pending = null;
-  }, GREEN_TIMEOUT_MS);
+s.pending = setTimeout(() => {
+
+  if (!s.awaitingGreen) return;
+
+  if (s.level === "green") {
+    console.log("ℹ️ Skip green reminder: already exists");
+    s.awaitingGreen = false;
+    return;
+  }
+
+  if (s.level !== "green") {
+    console.log("ℹ️ Skip green reminder: new alert state");
+    s.awaitingGreen = false;
+    return;
+  }
+
+  sendGreenReminder(locKey, groupName);
+  saveShiftStats(state);
+
+}, GREEN_TIMEOUT_MS);
 }
 
 /**
@@ -151,4 +172,6 @@ export function onWhatsAppLevel(locKey, level) {
     clearTimeout(s.pending);
     s.pending = null;
   }
+  saveShiftStats(state);
 }
+
