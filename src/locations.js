@@ -86,6 +86,17 @@ export const locations = {
       "Сумський"
     ]
   },
+    
+  Barvinkove: {
+    key: "Barvinkove",
+    groupName: "Barvinkove Alerts",
+    groupId: "120363425244752526@g.us",
+    aliases: [
+      "Ізюмський район",
+      "Ізюмський район.",
+      "Ізюмський"
+    ]
+  },
 
   Zaporizhzhia: {
     key: "Zaporizhzhia",
