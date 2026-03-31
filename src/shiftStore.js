@@ -1,6 +1,6 @@
 import fs from "fs";
 
-const FILE = "./shiftStats.json";
+const FILE = "/app/wa-auth/shiftStats.json";
 
 /**
  * 📥 Завантаження статистики
