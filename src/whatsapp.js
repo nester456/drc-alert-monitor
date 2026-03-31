@@ -6,11 +6,18 @@ import makeWASocket, {
 
 import pino from "pino";
 import fs from "fs";
+import axios from "axios";
+import QRCode from "qrcode";
+import FormData from "form-data";
 
 import { locations } from "./locations.js";
 import { onWhatsAppLevel } from "./logic.js";
 
 const AUTH_DIR = "wa-auth";
+
+// 🔐 Telegram для QR
+const BOT_TOKEN = process.env.BOT_TOKEN;
+const CHANNEL = "-1003719282039";
 
 function normalize(text) {
   return text
@@ -48,7 +55,36 @@ export async function startWhatsApp() {
 
   sock.ev.on("creds.update", saveCreds);
 
-  sock.ev.on("connection.update", ({ connection, lastDisconnect }) => {
+  sock.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
+
+    // 📲 QR → Telegram
+    if (qr) {
+      console.log("📲 QR GENERATED — sending to Telegram");
+
+      try {
+        const qrImage = await QRCode.toBuffer(qr);
+
+        const formData = new FormData();
+        formData.append("chat_id", CHANNEL);
+        formData.append("photo", qrImage, {
+          filename: "qr.png",
+          contentType: "image/png"
+        });
+        formData.append("caption", "📲 Скануй QR для підключення WhatsApp");
+
+        await axios.post(
+          `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`,
+          formData,
+          {
+            headers: formData.getHeaders()
+          }
+        );
+
+      } catch (err) {
+        console.log("❌ Failed to send QR:", err.message);
+      }
+    }
+
     if (connection === "open") {
       console.log("✅ WhatsApp connected");
     }
@@ -58,6 +94,7 @@ export async function startWhatsApp() {
       console.log("❌ WhatsApp disconnected", code);
 
       if (code !== DisconnectReason.loggedOut) {
+        console.log("🔁 Reconnecting...");
         setTimeout(startWhatsApp, 3000);
       }
     }
@@ -70,13 +107,13 @@ export async function startWhatsApp() {
 
     const level = detectLevel(text);
 
-if (!level) {
-  console.log(
-    "ℹ️ WhatsApp message ignored (no emoji level):",
-    text.slice(0, 80)
-  );
-  return;
-}
+    if (!level) {
+      console.log(
+        "ℹ️ WhatsApp message ignored (no emoji level):",
+        text.slice(0, 80)
+      );
+      return;
+    }
 
     const loc = Object.values(locations).find(
       l => l.groupId === msg.key.remoteJid
@@ -93,4 +130,3 @@ if (!level) {
     onWhatsAppLevel(loc.key, level);
   });
 }
-
