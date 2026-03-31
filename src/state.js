@@ -16,7 +16,7 @@ for (const loc of Object.values(locations)) {
   state[loc.key] = {
 
     // поточний рівень (відновлюємо після рестарту)
-    level: savedLevel?.level || "green",
+    level: savedLevel?.level ?? "unknown",
 
     // коли рівень був зафіксований
     levelAt: savedLevel?.levelAt || 0,

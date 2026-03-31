@@ -1,14 +1,20 @@
 import axios from "axios";
 import { state } from "./state.js";
+import { saveShiftStats } from "./shiftStore.js";
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const CHANNEL = "-1003719282039";
 
 export async function sendBlueReminder(locKey, groupName) {
-  state[locKey].shiftStats.blue.push({
+  const s = state[locKey];
+
+  s.shiftStats.blue.push({
     reminderAt: Date.now(),
-    resolvedAt: null
+    resolvedAt: null,
+    levelAtReminder: s.level
   });
+
+  saveShiftStats(state); // ✅ ДОДАТИ
 
   await send(
     `❗❗❗ Увага, ви не поставили 🔷 *синій* рівень тривоги в **${groupName}**`
@@ -16,13 +22,15 @@ export async function sendBlueReminder(locKey, groupName) {
 }
 
 export async function sendGreenReminder(locKey, groupName) {
- const s = state[locKey];
+  const s = state[locKey];
 
-s.shiftStats.green.push({
-  reminderAt: Date.now(),
-  resolvedAt: null,
-  levelAtReminder: s.level // 👈 ключова річ
-});
+  s.shiftStats.green.push({
+    reminderAt: Date.now(),
+    resolvedAt: null,
+    levelAtReminder: s.level
+  });
+
+  saveShiftStats(state); // ✅ ДОДАТИ
 
   await send(
     `❗❗❗ Увага, ви не поставили ✅ *зелений* рівень тривоги в **${groupName}**`
