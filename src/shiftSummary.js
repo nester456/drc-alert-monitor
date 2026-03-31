@@ -15,11 +15,32 @@ function fmt(ts) {
   });
 }
 
+// 🔍 ПЕРЕВІРКА ЦІЛІСНОСТІ ДАНИХ
+const validateStats = (events, type) => {
+  return events.filter(e => {
+
+    // якщо немає часу нагадування — це сміття
+    if (!e.reminderAt) return false;
+
+    // якщо resolved раніше ніж reminder — помилка
+    if (e.resolvedAt && e.resolvedAt < e.reminderAt) {
+      console.log(`⚠️ Invalid ${type} event removed`);
+      return false;
+    }
+
+    return true;
+  });
+};
+
 export async function sendShiftSummary() {
   let lines = [];
 
   for (const loc of Object.values(locations)) {
     const s = state[loc.key];
+
+    // ✅ ВСТАВЛЕНО ПРАВИЛЬНО (було внизу — тепер тут)
+    s.shiftStats.blue = validateStats(s.shiftStats.blue, "blue");
+    s.shiftStats.green = validateStats(s.shiftStats.green, "green");
 
     const render = (level, emoji, label) => {
       const events = s.shiftStats[level].filter(e => !e.closed);
@@ -31,24 +52,24 @@ export async function sendShiftSummary() {
       for (const e of events) {
 
         if (!e.resolvedAt) {
-         let line = ` – о ${fmt(e.reminderAt)} ❌ рівень не було поставлено`;
+          let line = ` – о ${fmt(e.reminderAt)} ❌ рівень не було поставлено`;
 
-if (e.levelAtReminder === "red") {
-  line += `, однак в цей час був червоний рівень`;
-}
+          if (e.levelAtReminder === "red") {
+            line += `, однак в цей час був червоний рівень`;
+          }
 
-lines.push(line);
+          lines.push(line);
         } else {
           const min =
             Math.round((e.resolvedAt - e.reminderAt) / 60000) + ADD_MIN;
 
           let line = ` – о ${fmt(e.reminderAt)} на ${min} хв`;
 
-if (e.levelAtReminder === "red") {
-  line += `, однак в цей час був червоний рівень`;
-}
+          if (e.levelAtReminder === "red") {
+            line += `, однак в цей час був червоний рівень`;
+          }
 
-lines.push(line);
+          lines.push(line);
         }
 
       }
@@ -78,22 +99,3 @@ async function send(text) {
     }
   );
 }
-// 🔍 ПЕРЕВІРКА ЦІЛІСНОСТІ ДАНИХ
-const validateStats = (events, type) => {
-  return events.filter(e => {
-
-    // якщо немає часу нагадування — це сміття
-    if (!e.reminderAt) return false;
-
-    // якщо resolved раніше ніж reminder — помилка
-    if (e.resolvedAt && e.resolvedAt < e.reminderAt) {
-      console.log(`⚠️ Invalid ${type} event removed`);
-      return false;
-    }
-
-    return true;
-  });
-};
-
-s.shiftStats.blue = validateStats(s.shiftStats.blue, "blue");
-s.shiftStats.green = validateStats(s.shiftStats.green, "green");
