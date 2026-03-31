@@ -4,6 +4,9 @@ import { loadShiftStats } from "./shiftStore.js";
 
 const savedStats = loadShiftStats();
 
+// 🔍 ЛОГ ДЛЯ ПЕРЕВІРКИ ПІСЛЯ РЕСТАРТУ
+console.log("📊 Loaded shift stats:", JSON.stringify(savedStats, null, 2));
+
 export const state = {};
 
 // читаємо збережені рівні
@@ -32,10 +35,10 @@ for (const loc of Object.values(locations)) {
     lastTelegramClearAt: 0,
 
     // 📊 журнал затримок за зміну
-   shiftStats: savedStats[loc.key] || {
-  blue: [],
-  green: []
-}
+    shiftStats: savedStats[loc.key] || {
+      blue: [],
+      green: []
+    }
 
   };
 

@@ -78,3 +78,22 @@ async function send(text) {
     }
   );
 }
+// 🔍 ПЕРЕВІРКА ЦІЛІСНОСТІ ДАНИХ
+const validateStats = (events, type) => {
+  return events.filter(e => {
+
+    // якщо немає часу нагадування — це сміття
+    if (!e.reminderAt) return false;
+
+    // якщо resolved раніше ніж reminder — помилка
+    if (e.resolvedAt && e.resolvedAt < e.reminderAt) {
+      console.log(`⚠️ Invalid ${type} event removed`);
+      return false;
+    }
+
+    return true;
+  });
+};
+
+s.shiftStats.blue = validateStats(s.shiftStats.blue, "blue");
+s.shiftStats.green = validateStats(s.shiftStats.green, "green");
