@@ -32,8 +32,10 @@ function detectLevel(text) {
 export async function startWhatsApp() {
   // 🧹 чистимо пусту auth папку
 if (fs.existsSync(AUTH_DIR)) {
-  fs.rmSync(AUTH_DIR, { recursive: true, force: true });
-  console.log("🧹 Auth cleared");
+  for (const file of fs.readdirSync(AUTH_DIR)) {
+    fs.rmSync(`${AUTH_DIR}/${file}`, { recursive: true, force: true });
+  }
+  console.log("🧹 Auth files cleared");
 }
 
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
