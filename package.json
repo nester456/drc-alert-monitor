@@ -7,11 +7,12 @@
   },
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.0",
-    "telegram": "^2.26.21",
     "axios": "^1.6.0",
     "dotenv": "^16.4.5",
+    "form-data": "^4.0.0",
+    "input": "^1.0.1",
     "pino": "^8.17.0",
     "qrcode": "^1.5.4",
-    "form-data": "^4.0.0"
+    "telegram": "^2.26.21"
   }
 }
