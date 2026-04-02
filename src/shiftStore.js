@@ -1,3 +1,18 @@
+import fs from "fs";
+
+const FILE = "./shiftStats.json";
+
+export function loadShiftStats() {
+  try {
+    return JSON.parse(fs.readFileSync(FILE, "utf-8"));
+  } catch {
+    return {};
+  }
+}
+
+export function saveShiftStats(data) {
+  fs.writeFileSync(FILE, JSON.stringify(data, null, 2));
+}
 import axios from "axios";
 import { state } from "./state.js";
 import { locations } from "./locations.js";
