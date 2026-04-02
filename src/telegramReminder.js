@@ -1,4 +1,4 @@
-imimport axios from "axios";
+import axios from "axios";
 import { state } from "./state.js";
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
