@@ -86,16 +86,17 @@ export async function startWhatsApp() {
       console.log("✅ WhatsApp connected");
     }
 
-    if (connection === "close") {
-      const code = lastDisconnect?.error?.output?.statusCode;
+if (connection === "close") {
+  const code = lastDisconnect?.error?.output?.statusCode;
 
-      console.log("❌ WhatsApp disconnected", code);
+  console.log("❌ WhatsApp disconnected", code);
 
-      if (code !== DisconnectReason.loggedOut) {
-        console.log("🔁 Reconnecting...");
-        setTimeout(startWhatsApp, 3000);
-      }
-    }
+  if (code === DisconnectReason.loggedOut) {
+    console.log("⚠️ Logged out — потрібен новий QR");
+  } else {
+    console.log("⏳ Чекаємо, не перезапускаємо щоб не зламати QR");
+  }
+}
   });
 
   // 📩 повідомлення
