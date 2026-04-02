@@ -4,6 +4,8 @@ import makeWASocket, {
   DisconnectReason
 } from "@whiskeysockets/baileys";
 
+import { setQR, startQRServer } from "./qrServer.js";
+
 import pino from "pino";
 import fs from "fs";
 import axios from "axios";
@@ -19,25 +21,16 @@ const AUTH_DIR = "wa-auth";
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const CHANNEL = "-1003719282039";
 
-function normalize(text) {
-  return text
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}
-
 function detectLevel(text) {
-  // ❗ Працюємо ТІЛЬКИ по емодзі
   if (text.includes("🚨")) return "red";
   if (text.includes("🔷")) return "blue";
   if (text.includes("🟡")) return "yellow";
   if (text.includes("✅")) return "green";
-
   return null;
 }
 
 export async function startWhatsApp() {
+  // 🧹 чистимо пусту auth папку
   if (fs.existsSync(AUTH_DIR) && fs.readdirSync(AUTH_DIR).length === 0) {
     fs.rmSync(AUTH_DIR, { recursive: true, force: true });
   }
@@ -55,12 +48,18 @@ export async function startWhatsApp() {
 
   sock.ev.on("creds.update", saveCreds);
 
+  // 🌐 запускаємо QR сервер
+  startQRServer();
+
   sock.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
 
-    // 📲 QR → Telegram
     if (qr) {
-      console.log("📲 QR GENERATED — sending to Telegram");
+      console.log("📲 QR GENERATED");
 
+      // 👉 показ у браузері
+      setQR(qr);
+
+      // 👉 Telegram (опціонально)
       try {
         const qrImage = await QRCode.toBuffer(qr);
 
@@ -70,18 +69,16 @@ export async function startWhatsApp() {
           filename: "qr.png",
           contentType: "image/png"
         });
-        formData.append("caption", "📲 Скануй QR для підключення WhatsApp");
+        formData.append("caption", "📲 Скануй QR для WhatsApp");
 
         await axios.post(
           `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`,
           formData,
-          {
-            headers: formData.getHeaders()
-          }
+          { headers: formData.getHeaders() }
         );
 
       } catch (err) {
-        console.log("❌ Failed to send QR:", err.message);
+        console.log("❌ QR Telegram error:", err.message);
       }
     }
 
@@ -91,6 +88,7 @@ export async function startWhatsApp() {
 
     if (connection === "close") {
       const code = lastDisconnect?.error?.output?.statusCode;
+
       console.log("❌ WhatsApp disconnected", code);
 
       if (code !== DisconnectReason.loggedOut) {
@@ -100,32 +98,33 @@ export async function startWhatsApp() {
     }
   });
 
+  // 📩 повідомлення
   sock.ev.on("messages.upsert", ({ messages }) => {
     const msg = messages[0];
-    const text = msg?.message?.conversation;
+
+    const text =
+      msg?.message?.conversation ||
+      msg?.message?.extendedTextMessage?.text ||
+      msg?.message?.imageMessage?.caption ||
+      msg?.message?.ephemeralMessage?.message?.conversation ||
+      msg?.message?.ephemeralMessage?.message?.extendedTextMessage?.text;
+
     if (!text) return;
 
     const level = detectLevel(text);
 
     if (!level) {
-      console.log(
-        "ℹ️ WhatsApp message ignored (no emoji level):",
-        text.slice(0, 80)
-      );
+      console.log("ℹ️ ignored:", text.slice(0, 60));
       return;
     }
 
     const loc = Object.values(locations).find(
       l => l.groupId === msg.key.remoteJid
     );
+
     if (!loc) return;
 
-    console.log(
-      "📲 WhatsApp level detected:",
-      loc.key,
-      "→",
-      level
-    );
+    console.log("📲 WhatsApp:", loc.key, "→", level);
 
     onWhatsAppLevel(loc.key, level);
   });
