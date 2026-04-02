@@ -30,11 +30,6 @@ function detectLevel(text) {
 }
 
 export async function startWhatsApp() {
-  // 🧹 чистимо пусту auth папку
-export async function startWhatsApp() {
-
-  const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
-
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
   const { version } = await fetchLatestBaileysVersion();
 
@@ -48,18 +43,15 @@ export async function startWhatsApp() {
 
   sock.ev.on("creds.update", saveCreds);
 
-  // 🌐 запускаємо QR сервер
+  // 🌐 QR сервер
   startQRServer();
 
   sock.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
-
     if (qr) {
       console.log("📲 QR GENERATED");
 
-      // 👉 показ у браузері
       setQR(qr);
 
-      // 👉 Telegram (опціонально)
       try {
         const qrImage = await QRCode.toBuffer(qr);
 
@@ -76,7 +68,6 @@ export async function startWhatsApp() {
           formData,
           { headers: formData.getHeaders() }
         );
-
       } catch (err) {
         console.log("❌ QR Telegram error:", err.message);
       }
@@ -86,20 +77,19 @@ export async function startWhatsApp() {
       console.log("✅ WhatsApp connected");
     }
 
-if (connection === "close") {
-  const code = lastDisconnect?.error?.output?.statusCode;
+    if (connection === "close") {
+      const code = lastDisconnect?.error?.output?.statusCode;
 
-  console.log("❌ WhatsApp disconnected", code);
+      console.log("❌ WhatsApp disconnected", code);
 
-  if (code === DisconnectReason.loggedOut) {
-    console.log("⚠️ Logged out — потрібен новий QR");
-  } else {
-    console.log("⏳ Чекаємо, не перезапускаємо щоб не зламати QR");
-  }
-}
+      if (code === DisconnectReason.loggedOut) {
+        console.log("⚠️ Logged out — потрібен новий QR");
+      } else {
+        console.log("⏳ Чекаємо, не перезапускаємо щоб не зламати QR");
+      }
+    }
   });
 
-  // 📩 повідомлення
   sock.ev.on("messages.upsert", ({ messages }) => {
     const msg = messages[0];
 
@@ -113,11 +103,7 @@ if (connection === "close") {
     if (!text) return;
 
     const level = detectLevel(text);
-
-    if (!level) {
-      console.log("ℹ️ ignored:", text.slice(0, 60));
-      return;
-    }
+    if (!level) return;
 
     const loc = Object.values(locations).find(
       l => l.groupId === msg.key.remoteJid
