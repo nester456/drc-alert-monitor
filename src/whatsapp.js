@@ -17,6 +17,16 @@ import { onWhatsAppLevel } from "./logic.js";
 
 const AUTH_DIR = "wa-auth";
 
+// 🔥 ВАЖЛИВО: очищення ТІЛЬКИ один раз
+if (process.env.FORCE_NEW_QR === "true") {
+  if (fs.existsSync(AUTH_DIR)) {
+    for (const f of fs.readdirSync(AUTH_DIR)) {
+      fs.rmSync(`${AUTH_DIR}/${f}`, { recursive: true, force: true });
+    }
+    console.log("🧹 Auth cleared (FORCE)");
+  }
+}
+
 // 🔐 Telegram для QR
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const CHANNEL = "-1003719282039";
@@ -43,7 +53,6 @@ export async function startWhatsApp() {
 
   sock.ev.on("creds.update", saveCreds);
 
-  // 🌐 QR сервер
   startQRServer();
 
   sock.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
