@@ -10,8 +10,6 @@ import { locations } from "./locations.js";
 import { onWhatsAppLevel } from "./logic.js";
 
 const AUTH_DIR = "wa-auth";
-
-// 📱 твій номер
 const PHONE_NUMBER = "380676233564";
 
 function detectLevel(text) {
@@ -23,70 +21,77 @@ function detectLevel(text) {
 }
 
 export async function startWhatsApp() {
-  const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
-  const { version } = await fetchLatestBaileysVersion();
+  console.log("👉 startWhatsApp CALLED");
 
-  const sock = makeWASocket({
-    auth: state,
-    version,
-    logger: pino({ level: "silent" }),
-    browser: ["DRC Alert Monitor", "Chrome", "120.0"]
-  });
+  try {
+    const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+    console.log("👉 auth loaded");
 
-  sock.ev.on("creds.update", saveCreds);
+    const { version } = await fetchLatestBaileysVersion();
 
-  // 🔥 ВАЖЛИВО: чекаємо підключення
-  sock.ev.on("connection.update", async ({ connection, lastDisconnect }) => {
+    const sock = makeWASocket({
+      auth: state,
+      version,
+      logger: pino({ level: "silent" }),
+      browser: ["DRC Alert Monitor", "Chrome", "120.0"]
+    });
 
-    if (connection === "open") {
-      console.log("🔗 Connected to WhatsApp server");
+    console.log("👉 socket created");
 
-      // 👉 якщо не авторизований → даємо код
-      if (!sock.authState.creds.registered) {
-        try {
-          const code = await sock.requestPairingCode(PHONE_NUMBER);
-          console.log("🔑 PAIRING CODE:", code);
-        } catch (err) {
-          console.log("❌ Pairing error:", err.message);
-        }
-      } else {
+    sock.ev.on("creds.update", saveCreds);
+
+    // 🔥 ПАРІНГ ОДРАЗУ
+    if (!state.creds.registered) {
+      console.log("👉 trying pairing...");
+
+      try {
+        const code = await sock.requestPairingCode(PHONE_NUMBER);
+        console.log("🔑 PAIRING CODE:", code);
+      } catch (err) {
+        console.log("❌ Pairing error:", err.message);
+      }
+    } else {
+      console.log("✅ Already authorized");
+    }
+
+    sock.ev.on("connection.update", ({ connection, lastDisconnect }) => {
+      if (connection === "open") {
         console.log("✅ WhatsApp connected");
       }
-    }
 
-    if (connection === "close") {
-      const code = lastDisconnect?.error?.output?.statusCode;
-      console.log("❌ WhatsApp disconnected", code);
-
-      if (code === DisconnectReason.loggedOut) {
-        console.log("⚠️ Logged out — перезапусти щоб отримати новий код");
+      if (connection === "close") {
+        const code = lastDisconnect?.error?.output?.statusCode;
+        console.log("❌ WhatsApp disconnected", code);
       }
-    }
-  });
+    });
 
-  sock.ev.on("messages.upsert", ({ messages }) => {
-    const msg = messages[0];
+    sock.ev.on("messages.upsert", ({ messages }) => {
+      const msg = messages[0];
 
-    const text =
-      msg?.message?.conversation ||
-      msg?.message?.extendedTextMessage?.text ||
-      msg?.message?.imageMessage?.caption ||
-      msg?.message?.ephemeralMessage?.message?.conversation ||
-      msg?.message?.ephemeralMessage?.message?.extendedTextMessage?.text;
+      const text =
+        msg?.message?.conversation ||
+        msg?.message?.extendedTextMessage?.text ||
+        msg?.message?.imageMessage?.caption ||
+        msg?.message?.ephemeralMessage?.message?.conversation ||
+        msg?.message?.ephemeralMessage?.message?.extendedTextMessage?.text;
 
-    if (!text) return;
+      if (!text) return;
 
-    const level = detectLevel(text);
-    if (!level) return;
+      const level = detectLevel(text);
+      if (!level) return;
 
-    const loc = Object.values(locations).find(
-      l => l.groupId === msg.key.remoteJid
-    );
+      const loc = Object.values(locations).find(
+        l => l.groupId === msg.key.remoteJid
+      );
 
-    if (!loc) return;
+      if (!loc) return;
 
-    console.log("📲 WhatsApp:", loc.key, "→", level);
+      console.log("📲 WhatsApp:", loc.key, "→", level);
 
-    onWhatsAppLevel(loc.key, level);
-  });
+      onWhatsAppLevel(loc.key, level);
+    });
+
+  } catch (err) {
+    console.log("💥 WhatsApp INIT ERROR:", err.message);
+  }
 }
