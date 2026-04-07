@@ -5,7 +5,6 @@ import makeWASocket, {
 } from "@whiskeysockets/baileys";
 
 import pino from "pino";
-import fs from "fs";
 
 import { locations } from "./locations.js";
 import { onWhatsAppLevel } from "./logic.js";
@@ -36,40 +35,27 @@ export async function startWhatsApp() {
 
   sock.ev.on("creds.update", saveCreds);
 
-  // 🔥 Якщо НЕ залогінений → даємо код
- sock.ev.on("connection.update", async ({ connection, lastDisconnect }) => {
+  // 🔥 ВАЖЛИВО: чекаємо підключення
+  sock.ev.on("connection.update", async ({ connection, lastDisconnect }) => {
 
-  if (connection === "open") {
-    console.log("🔗 Connected to WhatsApp server");
-
-    if (!sock.authState.creds.registered) {
-      try {
-        const code = await sock.requestPairingCode(PHONE_NUMBER);
-        console.log("🔑 PAIRING CODE:", code);
-      } catch (err) {
-        console.log("❌ Pairing error:", err.message);
-      }
-    }
-  }
-
-  if (connection === "open" && sock.authState.creds.registered) {
-    console.log("✅ WhatsApp connected");
-  }
-
-  if (connection === "close") {
-    const code = lastDisconnect?.error?.output?.statusCode;
-    console.log("❌ WhatsApp disconnected", code);
-  }
-});
-
-  sock.ev.on("connection.update", ({ connection, lastDisconnect }) => {
     if (connection === "open") {
-      console.log("✅ WhatsApp connected");
+      console.log("🔗 Connected to WhatsApp server");
+
+      // 👉 якщо не авторизований → даємо код
+      if (!sock.authState.creds.registered) {
+        try {
+          const code = await sock.requestPairingCode(PHONE_NUMBER);
+          console.log("🔑 PAIRING CODE:", code);
+        } catch (err) {
+          console.log("❌ Pairing error:", err.message);
+        }
+      } else {
+        console.log("✅ WhatsApp connected");
+      }
     }
 
     if (connection === "close") {
       const code = lastDisconnect?.error?.output?.statusCode;
-
       console.log("❌ WhatsApp disconnected", code);
 
       if (code === DisconnectReason.loggedOut) {
