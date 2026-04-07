@@ -37,10 +37,30 @@ export async function startWhatsApp() {
   sock.ev.on("creds.update", saveCreds);
 
   // 🔥 Якщо НЕ залогінений → даємо код
-  if (!sock.authState.creds.registered) {
-    const code = await sock.requestPairingCode(PHONE_NUMBER);
-    console.log("🔑 PAIRING CODE:", code);
+ sock.ev.on("connection.update", async ({ connection, lastDisconnect }) => {
+
+  if (connection === "open") {
+    console.log("🔗 Connected to WhatsApp server");
+
+    if (!sock.authState.creds.registered) {
+      try {
+        const code = await sock.requestPairingCode(PHONE_NUMBER);
+        console.log("🔑 PAIRING CODE:", code);
+      } catch (err) {
+        console.log("❌ Pairing error:", err.message);
+      }
+    }
   }
+
+  if (connection === "open" && sock.authState.creds.registered) {
+    console.log("✅ WhatsApp connected");
+  }
+
+  if (connection === "close") {
+    const code = lastDisconnect?.error?.output?.statusCode;
+    console.log("❌ WhatsApp disconnected", code);
+  }
+});
 
   sock.ev.on("connection.update", ({ connection, lastDisconnect }) => {
     if (connection === "open") {
