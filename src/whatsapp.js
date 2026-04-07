@@ -4,32 +4,16 @@ import makeWASocket, {
   DisconnectReason
 } from "@whiskeysockets/baileys";
 
-import { setQR, startQRServer } from "./qrServer.js";
-
 import pino from "pino";
 import fs from "fs";
-import axios from "axios";
-import QRCode from "qrcode";
-import FormData from "form-data";
 
 import { locations } from "./locations.js";
 import { onWhatsAppLevel } from "./logic.js";
 
 const AUTH_DIR = "wa-auth";
 
-// 🔥 ВАЖЛИВО: очищення ТІЛЬКИ один раз
-if (process.env.FORCE_NEW_QR === "true") {
-  if (fs.existsSync(AUTH_DIR)) {
-    for (const f of fs.readdirSync(AUTH_DIR)) {
-      fs.rmSync(`${AUTH_DIR}/${f}`, { recursive: true, force: true });
-    }
-    console.log("🧹 Auth cleared (FORCE)");
-  }
-}
-
-// 🔐 Telegram для QR
-const BOT_TOKEN = process.env.BOT_TOKEN;
-const CHANNEL = "-1003719282039";
+// 📱 твій номер
+const PHONE_NUMBER = "380676233564";
 
 function detectLevel(text) {
   if (text.includes("🚨")) return "red";
@@ -47,41 +31,18 @@ export async function startWhatsApp() {
     auth: state,
     version,
     logger: pino({ level: "silent" }),
-    browser: ["DRC Alert Monitor", "Chrome", "120.0"],
-    markOnlineOnConnect: false
+    browser: ["DRC Alert Monitor", "Chrome", "120.0"]
   });
 
   sock.ev.on("creds.update", saveCreds);
 
-  startQRServer();
+  // 🔥 Якщо НЕ залогінений → даємо код
+  if (!sock.authState.creds.registered) {
+    const code = await sock.requestPairingCode(PHONE_NUMBER);
+    console.log("🔑 PAIRING CODE:", code);
+  }
 
-  sock.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
-    if (qr) {
-      console.log("📲 QR GENERATED");
-
-      setQR(qr);
-
-      try {
-        const qrImage = await QRCode.toBuffer(qr);
-
-        const formData = new FormData();
-        formData.append("chat_id", CHANNEL);
-        formData.append("photo", qrImage, {
-          filename: "qr.png",
-          contentType: "image/png"
-        });
-        formData.append("caption", "📲 Скануй QR для WhatsApp");
-
-        await axios.post(
-          `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`,
-          formData,
-          { headers: formData.getHeaders() }
-        );
-      } catch (err) {
-        console.log("❌ QR Telegram error:", err.message);
-      }
-    }
-
+  sock.ev.on("connection.update", ({ connection, lastDisconnect }) => {
     if (connection === "open") {
       console.log("✅ WhatsApp connected");
     }
@@ -92,9 +53,7 @@ export async function startWhatsApp() {
       console.log("❌ WhatsApp disconnected", code);
 
       if (code === DisconnectReason.loggedOut) {
-        console.log("⚠️ Logged out — потрібен новий QR");
-      } else {
-        console.log("⏳ Чекаємо, не перезапускаємо щоб не зламати QR");
+        console.log("⚠️ Logged out — перезапусти щоб отримати новий код");
       }
     }
   });
