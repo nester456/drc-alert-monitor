@@ -10,7 +10,7 @@ import { locations } from "./locations.js";
 import { onWhatsAppLevel } from "./logic.js";
 
 const AUTH_DIR = "wa-auth";
-const PHONE_NUMBER = "3806765209042";
+const PHONE_NUMBER = "380675209042";
 
 function detectLevel(text) {
   if (text.includes("🚨")) return "red";

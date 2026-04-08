@@ -1,9 +1,12 @@
 import "dotenv/config";
 import { startWhatsApp } from "./whatsapp.js";
-import { startTelegramSource } from "./telegramSource.js";
+// import { startTelegramSource } from "./telegramSource.js";
 import "./scheduler.js";
 
-console.log("🚀 DRC ALERT MONITOR v2 starting");
+console.log("🚀 LOCAL WHATSAPP LOGIN");
 
+// 🔥 ТІЛЬКИ WhatsApp (щоб не зламати Telegram сесію)
 await startWhatsApp();
-await startTelegramSource();
+
+// ❌ Тимчасово вимкнено
+// await startTelegramSource();
